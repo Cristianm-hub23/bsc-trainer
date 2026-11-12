@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Biosafety Cabinet Trainer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+
+<style>
+/* Layout: picture of the cabinet on the left, one decision at a time on the right. */
+:root{
+  --bg:#eef1f3; --surface:#ffffff; --sunken:#e6ebee;
+  --fg:#15202a; --muted:#54656f; --faint:#7f909b;
+  --line:#c8d2d9;
+  --accent:#0b7f9b; --accent-ink:#ffffff;
+  --ok:#1a7447; --ok-bg:#dff1e6;
+  --warn:#8f5a0c; --warn-bg:#fbeed4;
+  --bad:#b02323; --bad-bg:#fadedd;
+  --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --bg:#11181d; --surface:#1a232a; --sunken:#141c21;
+  --fg:#e6edf1; --muted:#a3b3bd; --faint:#778a95;
+  --line:#33424b;
+  --accent:#4cc3e0; --accent-ink:#04232c;
+  --ok:#5fcf93; --ok-bg:#16301f;
+  --warn:#e3b05a; --warn-bg:#33270f;
+  --bad:#f08279; --bad-bg:#381a19;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#11181d; --surface:#1a232a; --sunken:#141c21;
+  --fg:#e6edf1; --muted:#a3b3bd; --faint:#778a95;
+  --line:#33424b;
+  --accent:#4cc3e0; --accent-ink:#04232c;
+  --ok:#5fcf93; --ok-bg:#16301f;
+  --warn:#e3b05a; --warn-bg:#33270f;
+  --bad:#f08279; --bad-bg:#381a19;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);margin:0;font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:18px 40px}
+.wrap{max-width:1180px;margin:0 auto}
+header{margin-bottom:14px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 4px}
+h1{font-size:clamp(21px,3.4vw,27px);margin:0;font-weight:600;letter-spacing:-.02em}
+
+.stepper{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 16px;padding:0;list-style:none}
+.stepper li{font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:99px;border:1px solid var(--line);color:var(--faint);background:var(--surface)}
+.stepper li.now{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.stepper li.done{color:var(--ok);border-color:var(--ok)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+
+.status{padding:10px 14px;font-weight:600;font-size:14.5px;border-bottom:1px solid var(--line);display:flex;gap:9px;align-items:center}
+.status i{flex:none;width:11px;height:11px;border-radius:50%;background:currentColor}
+.status.ok{background:var(--ok-bg);color:var(--ok)}
+.status.bad{background:var(--bad-bg);color:var(--bad)}
+.status.warn{background:var(--warn-bg);color:var(--warn)}
+.status.idle{background:var(--sunken);color:var(--muted)}
+.cv{background:#1c262d;aspect-ratio:640/400}
+canvas{display:block;width:100%;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:5px 15px;padding:9px 14px 4px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line)}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:16px;height:3px;border-radius:2px;flex:none}
+.note{margin:0;padding:2px 14px 9px;font-size:12px;color:var(--faint)}
+.plate{margin:0;padding:9px 14px;border-top:1px solid var(--line);font-size:12.5px;background:var(--sunken);color:var(--muted)}
+.plate b{color:var(--fg)}
+
+.top{border-top:1px solid var(--line);padding:12px 14px 14px}
+.cap{margin:0 0 8px;font-size:13.5px;font-weight:600;display:flex;flex-wrap:wrap;gap:2px 10px;justify-content:space-between}
+.cap span{font-weight:500;color:var(--accent)}
+.surface{display:grid;gap:5px}
+.zone{border:1.5px dashed var(--line);border-radius:5px;background:var(--sunken);padding:6px;display:flex;flex-wrap:wrap;gap:5px;
+  align-content:flex-start;align-items:center;transition:background .15s,border-color .15s}
+.zone .ztag{flex:1 0 100%;font-size:12px;color:var(--muted);line-height:1.3}
+.zone .ztag b{display:block;color:var(--fg);font-size:13px}
+.grille{min-height:34px;background:repeating-linear-gradient(90deg,var(--sunken) 0 6px,var(--line) 6px 9px)}
+.grille .ztag,.edge .ztag{flex:0 1 auto;background:var(--surface);padding:1px 7px;border-radius:3px;font-weight:600}
+.edge{min-height:34px}
+.bench{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.bench .zone{min-height:100px}
+.outside{margin-top:10px;border-style:solid}
+body.picking .zone{border-color:var(--accent);cursor:pointer}
+.zone.good{animation:zg .7s} .zone.poor{animation:zb .7s}
+@keyframes zg{35%{background:var(--ok-bg)}} @keyframes zb{35%{background:var(--bad-bg)}}
+.chip{font:600 12.5px var(--sans);padding:6px 9px;border-radius:4px;border:1px solid var(--line);background:var(--surface);color:var(--fg);
+  cursor:grab;line-height:1.2;touch-action:none;user-select:none}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip.wrong{border-color:var(--bad);color:var(--bad)}
+.chip:disabled{cursor:default}
+.chip.ghost{position:fixed;z-index:50;pointer-events:none;transform:translate(-50%,-50%);background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+.card{padding:16px}
+.card h2{margin:0 0 6px;font-size:17px;font-weight:600}
+.prompt{margin:0 0 12px;font-size:15px}
+.prompt small{display:block;color:var(--muted);font-size:13.5px;margin-top:3px}
+.how{margin:0 0 14px;padding-left:20px;display:grid;gap:6px;font-size:14.5px}
+.cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:0 0 12px;padding:11px;border:1px solid var(--line);border-radius:5px;background:var(--sunken)}
+.cfg p{grid-column:1/-1;margin:0;font-size:13px;color:var(--muted)}
+.cfg label{font-size:12px;font-weight:600;color:var(--muted);display:grid;gap:3px}
+.cfg select,.cfg input{font:500 13.5px var(--sans);padding:6px 7px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--fg);width:100%}
+.kicker{display:inline-block;font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:3px;margin-bottom:7px;
+  background:var(--sunken);color:var(--muted)}
+.kicker.alarm{background:var(--bad);color:var(--surface)}
+.acts{display:grid;gap:7px}
+button.act{font:500 14px/1.35 var(--sans);text-align:left;padding:10px 12px;border-radius:5px;border:1px solid var(--line);background:var(--sunken);color:var(--fg);cursor:pointer}
+button.act:hover:not(:disabled){border-color:var(--accent)}
+button.act:disabled{cursor:default;color:var(--faint)}
+button.act.done{color:var(--ok);border-color:var(--ok);background:var(--ok-bg)}
+button.act.done::before{content:"\2713\00a0\00a0"}
+button.act.wrong{color:var(--bad);border-color:var(--bad);background:var(--bad-bg)}
+button.act.wrong::before{content:"\2717\00a0\00a0"}
+button.go{font:600 14.5px var(--sans);padding:11px 14px;border-radius:5px;border:0;background:var(--accent);color:var(--accent-ink);cursor:pointer;margin-top:10px}
+button.go:hover{filter:brightness(1.08)}
+button:focus-visible,.zone:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.result{margin-top:12px;padding:11px 13px;border-radius:5px;border-left:4px solid;font-size:13.5px;line-height:1.45}
+.result .tag{font:600 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:2px}
+.result>b{display:block;font-size:14.5px;margin-bottom:6px}
+.result dl{margin:0;display:grid;grid-template-columns:minmax(92px,auto) 1fr;gap:4px 10px}
+.result dt{font-weight:600;color:var(--muted);font-size:12.5px}
+.result dd{margin:0;min-width:0}
+@media (max-width:460px){.result dl{grid-template-columns:1fr}.result dd{margin-bottom:4px}}
+.result.ok{background:var(--ok-bg);border-color:var(--ok)} .result.ok .tag,.result.ok>b{color:var(--ok)}
+.result.poor,.result.risk{background:var(--warn-bg);border-color:var(--warn)} .result.poor .tag,.result.poor>b,.result.risk .tag,.result.risk>b{color:var(--warn)}
+.result.fail{background:var(--bad-bg);border-color:var(--bad)} .result.fail .tag,.result.fail>b{color:var(--bad)}
+.timer{margin-top:12px;font-family:var(--mono);font-weight:600;text-align:center;padding:12px;border:1px solid var(--line);border-radius:5px;background:var(--sunken)}
+
+.scorecard{margin-top:14px;padding:14px 16px}
+.meters{display:grid;gap:9px}
+.meter label{font-size:12.5px;font-weight:600;color:var(--muted);display:flex;justify-content:space-between}
+.meter label b{font-family:var(--mono);color:var(--fg);font-size:13.5px}
+.bar{height:8px;background:var(--sunken);border:1px solid var(--line);border-radius:5px;overflow:hidden;margin-top:4px}
+.fill{height:100%;background:var(--ok);transition:width .4s}
+.counts{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px;font-size:12px}
+.counts span{border:1px solid var(--line);border-radius:4px;padding:2px 7px;color:var(--muted)}
+.counts b{font-family:var(--mono);color:var(--fg)}
+details{margin-top:11px;font-size:13px}
+summary{cursor:pointer;color:var(--accent);font-weight:600}
+.log{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:5px;max-height:200px;overflow-y:auto}
+.log li{padding:6px 9px;border-left:3px solid var(--line);background:var(--sunken);border-radius:3px;color:var(--muted)}
+.log li.ok{border-color:var(--ok)} .log li.poor,.log li.risk{border-color:var(--warn)} .log li.fail{border-color:var(--bad)}
+.log li b{color:var(--fg)}
+
+.verdict{padding:11px 13px;border-radius:5px;font-weight:600;margin:0 0 12px}
+.rep{width:100%;border-collapse:collapse;font-size:13.5px;margin:0 0 12px}
+.rep th{text-align:left;font-weight:500;color:var(--muted);padding:5px 8px 5px 0;border-bottom:1px solid var(--line)}
+.rep td{text-align:right;font-family:var(--mono);font-weight:600;padding:5px 0;border-bottom:1px solid var(--line)}
+.rep tr.h th{font-weight:700;color:var(--fg);padding-top:11px}
+.rules{padding-left:18px;margin:6px 0 0;color:var(--muted);display:grid;gap:4px;font-size:13.5px}
+.cite{font-size:12px;color:var(--faint);margin:12px 0 0}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">GBIO 65 &middot; Biosafety and Biosecurity</p>
+    <h1>Biosafety Cabinet Trainer</h1>
+  </header>
+  <ol class="stepper" id="stepper"><li>1 Start-up</li><li>2 Load</li><li>3 Work</li><li>4 Shut-down</li></ol>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="status idle" id="status"><i></i><span></span></div>
+      <div class="cv"><canvas id="cv" aria-label="Cross-section of a Class II Type A2 biosafety cabinet showing airflow"></canvas></div>
+      <div class="legend">
+        <span><i style="background:#5cc8e6"></i>HEPA-filtered air</span>
+        <span><i style="background:#aab8c0"></i>Room air drawn in</span>
+        <span><i style="background:#a99cf0"></i>Air returning to the filters</span>
+        <span><i style="background:#f0b860"></i>Disturbed air</span>
+        <span><i style="background:#ff6b5e"></i>Air escaping containment</span>
+      </div>
+      <p class="note">Qualitative teaching model of a Class II Type A2 cabinet. It shows airflow patterns, not measured velocities, and is not a CFD simulation.</p>
+      <p class="plate" id="plate"></p>
+      <div class="top" id="top" hidden>
+        <p class="cap">Work surface, seen from above <span id="pickhint"></span></p>
+        <div class="surface">
+          <div class="zone grille" data-zone="rear" tabindex="0"><span class="ztag">Rear grille (back of the cabinet)</span></div>
+          <div class="bench">
+            <div class="zone" data-zone="clean" tabindex="0"><span class="ztag"><b>Clean side</b>supplies not yet used</span></div>
+            <div class="zone" data-zone="work" tabindex="0"><span class="ztag"><b>Work area</b>centre of the cabinet</span></div>
+            <div class="zone" data-zone="waste" tabindex="0"><span class="ztag"><b>Contaminated side</b>used and waste items</span></div>
+          </div>
+          <div class="zone edge" data-zone="edge" tabindex="0"><span class="ztag">Front edge (within about 10 cm of the grille)</span></div>
+          <div class="zone grille" data-zone="front" tabindex="0"><span class="ztag">Front grille (nearest to you)</span></div>
+        </div>
+        <div class="zone outside" data-zone="outside" tabindex="0"><span class="ztag"><b>Bench outside the cabinet</b></span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel card">
+        <h2 id="title"></h2>
+        <div id="body"></div>
+        <div class="acts" id="acts"></div>
+        <div id="result" hidden></div>
+        <div id="after"></div>
+      </div>
+      <div class="panel scorecard" id="scorecard" hidden>
+        <div class="meters" id="meters"></div>
+        <div class="counts" id="counts"></div>
+        <details><summary>Session log</summary><ul class="log" id="log"></ul></details>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const REF = {
+  both:"WHO Laboratory Biosafety Manual, 4th ed. (2020), BSC monograph; CDC/NIH BMBL, 6th ed. (2020), Appendix A",
+  bm:"CDC/NIH BMBL, 6th ed. (2020), Appendix A",
+  man:"Cabinet manufacturer's manual and laboratory SOP",
+  tb:"WHO Tuberculosis laboratory biosafety manual, section on using biological safety cabinets"
+};
+const SEV = {ok:"Correct",poor:"Unsafe action",risk:"Potential containment risk",fail:"Simulated containment failure"};
+const PROT = ["Personnel protection","Product protection","Environmental protection"];
+let CFG = {sash:"10",purge:"4",arm:"2",post:"5",policy:"off",name:""};
+let S;
+function fresh(){ return { phase:-1, blower:false, sash:"closed", fx:null, cond:null, placements:{}, picked:null,
+  prot:[100,100,100], n:{ok:0,poor:0,risk:0,fail:0}, alarms:0, crit:[], topics:{}, why:{r:0,t:0}, seq:{r:0,t:0},
+  done:[], used:[], order:null, sub:false, w:{i:0,open:false}, busy:false }; }
+
+/* ============================ content ============================ */
+const ITEMS = [
+  {id:"etoh",label:"70% ethanol",ok:["work","clean"],need:1,why:"Disinfectant stays within reach without crossing over clean supplies."},
+  {id:"pipette",label:"Pipettor and tips",ok:["clean"],need:1,why:"Unused equipment belongs on the clean side."},
+  {id:"rack",label:"Broth cultures",ok:["clean"],need:1,why:"Cultures waiting to be used stay on the clean side until opened."},
+  {id:"plates",label:"Agar plates",ok:["work"],need:1,why:"Plates you will open belong in the centre, well behind the front grille."},
+  {id:"discard",label:"Discard tray",ok:["waste"],need:1,why:"Waste sits on the contaminated side, so used material never travels back over clean items."},
+  {id:"notebook",label:"Notebook",ok:["outside"],why:"Paper absorbs spills and cannot be decontaminated. It stays outside.",bad:"Paper inside the cabinet absorbs spills and cannot be decontaminated."},
+  {id:"burner",label:"Bunsen burner",ok:["outside"],why:"Open flames are not used in a biosafety cabinet."},
+  {id:"gloves",label:"Box of gloves",ok:["outside"],why:"Stock supplies stay outside the cabinet.",bad:"Stock supplies crowd the work zone and disturb the downflow."},
+  {id:"tips",label:"Spare tip boxes (4)",ok:["outside"],why:"Only what the procedure needs goes inside.",bad:"Extra equipment disturbs the uniform downflow."},
+  {id:"media",label:"Spare media bottles",ok:["outside"],why:"Only what the procedure needs goes inside.",bad:"Extra equipment disturbs the uniform downflow."}
+];
+const FXMSG = {
+  flame:"Flame: rising heat breaks the downflow and pushes air out toward you.",
+  sashHigh:"Sash above its certified height: the inflow is too weak to hold the air in.",
+  sashLow:"Sash below its certified height: the airflow is out of balance.",
+  blowerOff:"Blower off: nothing is holding contaminated air inside.",
+  aerosol:"Aerosol released where the airflow cannot capture it.",
+  arm:"Fast arm movement is dragging air through the opening.",
+  over:"Too much equipment: the downflow is breaking into eddies.",
+  draft:"A room draught is pushing through the air barrier.",
+  fB:"Front grille blocked: the air barrier at the opening has failed.",
+  rB:"Rear grille blocked: air is backing up over the work.",
+  alarm:"ALARM: low airflow. The cabinet cannot be relied on.",
+  uv:"UV lamp on with a person at the cabinet: skin and eye hazard.",
+  spill:"Spill on the work surface. The running cabinet is containing the aerosol."
+};
+function startup(){ return [
+  {id:"inspect",t:"Inspect the cabinet: empty, clean, grilles clear, sash glass intact",need:[],
+   why:"A cabinet is inspected before every use. Anything left inside disturbs the airflow from the first minute.",
+   pr:"Containment is designed around an unobstructed work zone.",ref:REF.both},
+  {id:"cert",t:"Check that the certification label is in date",need:[],
+   why:"Certification confirms that the airflow velocities and HEPA filter integrity were tested, normally at least once a year and after the cabinet is moved or repaired.",
+   air:"An uncertified cabinet can have wrong airflow or a leaking filter and still sound normal.",
+   pr:"Environmental protection depends on an intact exhaust HEPA filter; personnel and product protection depend on verified airflow.",ref:REF.bm+"; NSF/ANSI 49"},
+  {id:"blower",t:"Switch on the blower",need:["inspect","cert"],run(){S.blower=true;},
+   why:"The blower produces both the inflow at the opening and the filtered downflow.",
+   air:"Room air enters the front grille, filtered air descends over the work surface, about 70% is recirculated through the supply HEPA filter and about 30% leaves through the exhaust HEPA filter.",
+   pr:"A Class II cabinet protects by directed airflow and HEPA filtration, not by its walls.",ref:REF.both},
+  {id:"sash",t:"Set the sash to the working height for this cabinet",need:["inspect","cert"],sub:1},
+  {id:"purge",t:`Let the airflow stabilise for ${CFG.purge} minutes before loading`,need:["blower","sash"],timed:+CFG.purge,
+   why:"Running the cabinet first removes particles that settled inside and lets the airflow reach a steady pattern.",
+   air:"The downflow and inflow settle into their stable paths.",pr:"Protection is only reliable once the airflow is stable.",ref:REF.bm+" (at least four minutes); "+REF.man},
+  {id:"alarm",t:"Check the airflow indicator and confirm that no alarm is showing",need:["purge"],
+   why:"The gauge or display is the only way to know that the airflow is within its certified range.",
+   pr:"Airflow cannot be judged by sound or feel.",ref:REF.man+"; "+REF.both},
+  {id:"wipe",t:"Disinfect the work surface, side walls and inside of the sash",need:["purge"],
+   why:"Interior surfaces are decontaminated before and after each use, and the disinfectant must stay wet for its contact time.",
+   pr:"HEPA-filtered air does not clean surfaces; contact contamination needs chemical disinfection.",ref:REF.both},
+  {trap:1,t:"Load the materials straight away",sev:"poor",imp:[0,8,0],topic:"Start-up sequence",
+   why:"Materials go in only after the airflow is stable and the surface is disinfected.",air:"Unstable air and settled particles reach the materials.",
+   pr:"Product protection needs stable filtered downflow over a clean surface.",fix:"Complete the start-up checks, then load.",ref:REF.bm},
+  {trap:1,t:"Switch on the UV lamp and keep it on while working",sev:"poor",imp:[8,0,0],topic:"UV lamps",fx:"uv",
+   why:"UV light injures skin and eyes and does not reach shadowed or dusty surfaces.",air:"Airflow is not affected; the hazard is the radiation.",
+   pr:"UV is not a substitute for airflow or for chemical disinfection.",fix:"Keep the UV lamp off whenever anyone is at the cabinet.",ref:REF.bm+": UV lamps are not recommended nor required in BSCs"},
+  {trap:1,t:"Light the Bunsen burner so the loop is ready",sev:"fail",imp:[12,12,4],topic:"Open flames",fx:"flame",
+   why:"An open flame was lit inside the cabinet.",air:"Rising heat breaks the downflow into turbulence and carries air out through the opening.",
+   pr:"All three protections depend on undisturbed airflow; heat can also damage the supply HEPA filter.",fix:"Use disposable loops or an electric micro-incinerator.",ref:REF.both}
+];}
+function shutdown(){ const off=CFG.policy==="off"; return [
+  {id:"close",t:"Close or cap every container and cover the discard tray",need:[],
+   why:"Closed containers release no aerosol while they are handled and removed.",pr:"Contain the material before you move it.",ref:REF.both},
+  {id:"remove",t:"Wipe each item with disinfectant, then remove samples and supplies slowly",need:["close"],run(){ITEMS.forEach(i=>{if(i.id!=="discard")delete S.placements[i.id];});},
+   why:"Surface decontamination stops contamination leaving on the outside of a rack or bottle.",air:"Slow removal keeps the air barrier intact.",
+   pr:"Environmental protection includes everything that leaves the cabinet, not only the exhaust air.",ref:REF.both},
+  {id:"waste",t:"Take the covered waste to the autoclave or biohazard container",need:["close"],run(){delete S.placements.discard;},
+   why:"Waste leaves the cabinet covered and goes directly to decontamination.",pr:"Untreated infectious waste never enters the general waste stream.",ref:REF.both},
+  {id:"wipe2",t:"Disinfect the work surface, side and back walls, and inside of the sash",need:["remove","waste"],
+   why:"All interior surfaces are decontaminated after use.",pr:"The next user must find a decontaminated cabinet.",ref:REF.both},
+  {id:"contact",t:"Leave the disinfectant wet for its full contact time",need:["wipe2"],timed:10,tl:"Contact time",
+   why:"A disinfectant that is wiped dry immediately has not had time to act.",pr:"Chemical disinfection depends on concentration and contact time.",ref:REF.both},
+  {id:"purge2",t:`Let the cabinet run for ${CFG.post} more minutes`,need:["contact"],timed:+CFG.post,
+   why:"The post-use purge clears airborne particles released during the session.",air:"Remaining aerosol is carried through the grilles to the HEPA filters.",
+   pr:"Aerosols are removed by filtration before the airflow stops.",ref:REF.man+"; "+REF.bm},
+  {id:"end",t:off?"Close the sash and switch off the blower":"Close the sash and leave the blower running",need:["purge2"],run(){S.sash="closed";if(off)S.blower=false;},
+   why:off?"This laboratory's SOP is to switch the blower off after the purge. The blower is always the last thing to stop.":"This laboratory's SOP is to keep the cabinet running continuously, which is common practice.",
+   pr:"Blower shutdown practice is set by the cabinet manual and the institution, not by a universal rule.",ref:REF.man},
+  {trap:1,t:off?"Close the sash and leave the blower running overnight":"Close the sash and switch off the blower",sev:"poor",imp:[0,0,3],topic:"Shut-down sequence",
+   why:"That is not what this laboratory's SOP states for this cabinet.",air:"No immediate airflow hazard.",
+   pr:"Follow the cabinet manual and the local SOP for blower operation.",fix:"Read the data plate and SOP line under the picture.",ref:REF.man},
+  {trap:1,t:"Switch off the blower first, then clean up",sev:"fail",imp:[18,0,15],topic:"Shut-down sequence",fx:"blowerOff",
+   why:"The blower was stopped while contaminated materials were still open inside.",air:"With no inflow or downflow, contaminated air drifts out of the opening.",
+   pr:"Personnel and environmental protection exist only while the blower runs.",fix:"Decontaminate and purge first; stop the blower last, if the SOP says to stop it at all.",ref:REF.both},
+  {trap:1,t:"Leave the plates inside until tomorrow",sev:"poor",imp:[0,6,4],topic:"Shut-down sequence",
+   why:"A cabinet is not an incubator or a storage space.",air:"Items left inside obstruct the airflow for the next user.",
+   pr:"Cultures left unattended are a biosafety and a biosecurity problem.",fix:"Remove and store or incubate all samples.",ref:REF.both},
+  {trap:1,t:"Run the UV lamp overnight instead of disinfecting",sev:"poor",imp:[0,6,4],topic:"UV lamps",fx:"uv",
+   why:"UV does not reach under residues, into shadows or through dust.",air:"Airflow is not affected.",
+   pr:"UV never replaces chemical decontamination of surfaces.",fix:"Disinfect with a suitable liquid disinfectant and observe the contact time.",ref:REF.bm+": UV lamps are not recommended nor required in BSCs"},
+  {trap:1,t:"Carry the open discard tray across the room to the autoclave",sev:"risk",imp:[8,0,12],topic:"Waste handling",
+   why:"Uncovered contaminated waste was carried through the room.",air:"Outside the cabinet there is no airflow to capture anything released.",
+   pr:"Waste is contained before it leaves primary containment.",fix:"Cover or bag the waste inside the cabinet, wipe the outside, then transport.",ref:REF.both}
+];}
+function work(){ const a=CFG.arm, armRef=a==="2"?REF.tb+" (about 2 minutes); "+REF.bm+" advises about 1 minute":REF.bm+" (about 1 minute); "+REF.tb+" advises about 2 minutes";
+return [
+ {tag:"Entering the cabinet",topic:"Arm movement",q:"You are ready to begin. How do you put your hands and arms into the cabinet?",
+  o:[[`Slide both arms in slowly, straight through the opening, then wait about ${a} minute${a==="1"?"":"s"} before handling anything`,"ok",0,"Slow, straight movement lets the air barrier close around your arms, and the wait lets the airflow sweep them."],
+     ["Reach in quickly and start at once","risk",[12,6,0],"Fast movement drags room air in and cabinet air out through the opening.","arm"],
+     ["Sweep your arms in from the side while turning to talk","risk",[10,6,0],"Sideways sweeping cuts across the air barrier instead of passing through it.","arm"]],
+  r:["The inward air barrier at the opening is easily broken by fast or sideways movement","Moving slowly prevents the HEPA filter from clogging","Slow movement only prevents knocking over tubes"],
+  air:"A fast arm acts like a paddle: it pulls a pocket of cabinet air out toward you and pushes unfiltered room air in over the work.",
+  airOk:"The inflow closes around your sleeves and the downflow sweeps loose particles off them into the grilles.",
+  pr:"Personnel protection in a Class II cabinet depends on a steady inward air barrier at the front opening.",
+  fix:`Move arms slowly and perpendicular to the opening; wait about ${a} minute${a==="1"?"":"s"} before manipulating.`,ref:armRef},
+ {tag:"Pipetting",topic:"Clean-to-contaminated workflow",q:"You have pipetted culture onto a plate. The used tip is contaminated. Where does it go?",
+  o:[["Into the discard tray on the contaminated side, without passing over clean supplies","ok",0,"The contaminated tip never travels over clean material."],
+     ["Back across the clean side, to drop it in the lid of the tip box","poor",[0,12,0],"A contaminated item passed over clean supplies can drip or shed onto them."],
+     ["Straight out of the cabinet to the bin on the bench","risk",[8,0,10],"An uncovered contaminated item was carried out through the air barrier.","arm"]],
+  r:["Work moves one way, from clean to contaminated, so contamination never travels back over clean material","Used tips must be discarded within five seconds","The contaminated side has stronger airflow"],
+  air:"Droplets from the tip fall with the downflow onto whatever lies beneath its path.",
+  airOk:"Any droplet is carried down and into the nearest grille, away from clean items.",
+  pr:"Downflow moves vertically toward the grilles; it does not shield one item from another passed directly above it.",
+  fix:"Arrange and work from clean to contaminated; discard inside the cabinet on the contaminated side.",ref:REF.both},
+ {tag:"Airflow alarm",topic:"Alarm response",int:1,cond:"alarm",q:"The airflow alarm sounds and the indicator shows low inflow. What do you do?",
+  o:[["Stop work, close all containers, withdraw slowly, and report it. Do not resume until it is cleared","ok",0,"Work stopped and materials were secured while the airflow was unreliable."],
+     ["Silence the alarm and finish the last few plates","fail",[20,10,10],"Work continued in a cabinet that was signalling loss of airflow."],
+     ["Lift the sash fully to let more air in","fail",[20,8,5],"A larger opening lowers the inflow velocity even further.","sashHigh"]],
+  r:["Without adequate inflow, the air barrier that protects the worker no longer exists","The alarm only means the filter needs dusting","Airflow alarms measure room temperature"],
+  air:"The inflow is too weak to hold cabinet air inside, so contaminated air can roll out under the sash.",
+  airOk:"With containers closed, nothing releases aerosol while the airflow is unreliable.",
+  pr:"All three protections rely on the certified airflow balance; an alarm means that balance is lost.",
+  fix:"Cease work immediately, secure materials, notify the supervisor, and resume only after the cause is corrected.",ref:REF.tb+": when an airflow alarm sounds, work should cease immediately; "+REF.man},
+ {tag:"Sample handling",topic:"Working position",q:"Where do you open the plate to streak it?",
+  o:[["In the centre of the work surface, well behind the front grille","ok",0,"The plate was opened where only filtered downflow reaches it."],
+     ["At the front edge near the grille, where it is easier to see","risk",[10,8,0],"The front edge is where room air and cabinet air meet.","aerosol"],
+     ["Held up in the air, close to the sash","poor",[4,8,0],"Work held high is closer to your face and outside the most uniform downflow."]],
+  r:["Near the front grille, unfiltered room air mixes with cabinet air, so worker and sample are both less protected there","The centre of the cabinet is warmer","There is no airflow at all in the centre"],
+  air:"Aerosol released at the front edge sits in the mixing zone, where it can be drawn out or the plate contaminated by room air.",
+  airOk:"In the centre, the open plate is bathed in HEPA-filtered downflow only.",
+  pr:"Protection is best on the work surface at least about 10 cm (4 in) behind the front grille.",
+  fix:"Do all manipulations on the work surface, well inside the cabinet.",ref:REF.bm},
+ {tag:"Sash alarm",topic:"Sash height",int:1,cond:"sashHigh",q:"The sash has crept above the height stated on the data plate. What do you do?",
+  o:[[`Return the sash to ${CFG.sash} inches, pause until the airflow settles, then continue`,"ok",0,"The sash was returned to the height at which this cabinet was certified."],
+     ["Leave it there; the extra room is useful","fail",[18,6,0],"Work continued with the opening larger than the certified height."],
+     ["Push it all the way up to reset it","fail",[20,8,0],"The opening was made even larger."]],
+  r:["The cabinet is certified at one opening height; a larger opening lowers the inflow velocity","A higher sash lets the HEPA filter rest","Sash height only matters for lighting"],
+  air:"The same volume of air now enters through a larger opening, so it moves more slowly and cabinet air escapes near the top of the opening.",
+  airOk:"Inflow velocity returns to its certified value across the whole opening.",
+  pr:"Inflow velocity depends on the size of the opening. The correct height is set by the manufacturer and verified at certification; it is not the same on every cabinet.",
+  fix:"Keep the sash at the height on the data plate; check it during work, not only at start-up.",ref:REF.man+"; "+REF.bm},
+ {tag:"Sharing the cabinet",topic:"Excessive equipment",q:"A classmate asks to put a centrifuge, two more racks and a stack of boxes in your cabinet so you can share it.",
+  o:[["Decline: keep only what this procedure needs inside","ok",0,"The work zone was kept clear."],
+     ["Agree, and fit everything in around your work","risk",[6,14,0],"The work zone was overloaded.","over"],
+     ["Agree, and stack the boxes at the back to save space","risk",[4,14,4],"The stack sits against the rear grille.","rB"]],
+  r:["Bulky items break the smooth downflow into turbulence that carries contamination between items","Extra items make the cabinet too heavy","More items wear out the HEPA filter faster"],
+  air:"Large objects break the uniform downflow into eddies; air swirls sideways across the surface instead of flowing straight into the grilles.",
+  airOk:"Downflow stays uniform and splits cleanly toward the front and rear grilles.",
+  pr:"Product protection depends on uniform, unidirectional downflow.",
+  fix:"Minimise what is inside; place necessary bulky items toward the rear without covering the rear grille.",ref:REF.both},
+ {tag:"Incident",topic:"Front and rear grilles",int:1,cond:"fB",q:"You notice your forearms and a paper towel are resting on the front grille.",
+  o:[["Lift your arms off the grille, remove the towel, and wait for the airflow to recover","ok",0,"The intake grille was cleared."],
+     ["Carry on; arms have to rest somewhere","fail",[18,10,0],"Work continued with the front grille covered."],
+     ["Slide the towel further in so it lies flat over the grille","fail",[20,10,0],"The front grille was covered completely."]],
+  r:["The front grille is the intake for the air barrier; covered, room air flows over the work and cabinet air can escape","The front grille is only a drain for spills","The front grille gets hot"],
+  air:"Room air can no longer drop into the grille, so it travels across the work surface, while cabinet air near the opening spills out.",
+  airOk:"Room air again turns down into the front grille without reaching the work.",
+  pr:"The front grille forms the air barrier: it protects the worker and keeps unfiltered room air off the product.",
+  fix:"Never rest arms, paper or equipment on the front grille; raise your arms slightly.",ref:REF.both},
+ {tag:"Aseptic work",topic:"Open flames",q:"You need a sterile inoculating loop.",
+  o:[["Use a disposable sterile loop or an electric micro-incinerator","ok",0,"No flame was introduced."],
+     ["Light a Bunsen burner inside the cabinet","fail",[15,15,5],"An open flame was lit inside the cabinet.","flame"],
+     ["Use a small alcohol lamp; the flame is tiny","fail",[10,12,5],"A small flame is still an open flame.","flame"]],
+  r:["Heat creates rising currents that break the downflow, and a flame can damage the supply HEPA filter","A flame uses up the oxygen in the cabinet","Flames are acceptable if the sash is raised"],
+  air:"Hot air rises against the downflow, creating turbulence that carries contaminated air sideways and out of the opening.",
+  airOk:"Downflow stays undisturbed.",
+  pr:"The air inside a working cabinet is already nearly particle-free, so a flame adds risk and no benefit.",
+  fix:"Use disposable loops or a micro-incinerator.",ref:REF.both},
+ {tag:"Biological spill",topic:"Spill response",int:1,cond:"spill",q:"A tube tips over and about 2 mL of culture spills on the work surface.",
+  o:[["Keep the cabinet running, cover the spill with absorbent, apply disinfectant from the edges inward, wait the contact time, then discard as biohazard waste","ok",0,"The spill was decontaminated with the cabinet still containing the aerosol."],
+     ["Switch off the blower so the spill is not blown around","fail",[20,5,15],"The blower was stopped during a spill.","blowerOff"],
+     ["Wipe it up quickly with dry tissue and carry on","risk",[8,10,8],"The spill was spread, not decontaminated."]],
+  r:["The running cabinet is what contains the aerosol produced by the spill and by cleaning it up","Disinfectants only work in still air","A spill is harmless once it dries"],
+  air:"With the blower off, the aerosol from the spill is free to leave through the opening.",
+  airOk:"Aerosol from the spill is drawn down into the grilles and trapped by the HEPA filters.",
+  pr:"Primary containment must keep operating while the hazard is present.",
+  fix:"Leave the cabinet running; absorb, disinfect, observe contact time, and decontaminate everything that was splashed.",ref:REF.tb+": clean-up should begin immediately and the cabinet should continue to operate; "+REF.bm},
+ {tag:"Waste disposal",topic:"Front and rear grilles",cond:"rB",q:"The waste bag has been pushed back and is now lying against the rear grille.",
+  o:[["Move it forward off the grille, keeping it on the contaminated side","ok",0,"The rear grille was cleared."],
+     ["Leave it: only the front grille matters","risk",[5,14,4],"The rear grille stayed covered.","rB"],
+     ["Move it onto the front grille instead","fail",[16,10,0],"The front grille was covered.","fB"]],
+  r:["Downflow must leave through both grilles; with the rear covered, air stagnates and rolls forward over the work","The rear grille is where the clean air comes out","The rear grille is only for cables"],
+  air:"Downflow at the back has no exit, so it turns forward across the work surface, carrying contamination with it.",
+  airOk:"Downflow splits again between the front and rear grilles.",
+  pr:"Both grilles are part of the airflow path; neither may be obstructed.",
+  fix:"Keep materials toward the rear but clear of the rear grille.",ref:REF.both},
+ {tag:"Room disturbance",topic:"External air disturbances",cond:"draft",q:"The door swings open and people walk quickly past behind you. You feel a draught on your back.",
+  o:[["Stop manipulating, keep your hands still inside, ask for the door to be closed, and continue when the air has settled","ok",0,"Work paused while the room air was disturbed."],
+     ["Keep working; the cabinet is stronger than a draught","risk",[10,8,0],"Open cultures were handled while the air barrier was disturbed.","draft"],
+     ["Pull your arms out fast and turn around","risk",[12,6,0],"A fast withdrawal added to the disturbance.","arm"]],
+  r:["Room air currents can be faster than the cabinet's inflow and push through the air barrier","Draughts cool the cultures","Draughts only affect Class I cabinets"],
+  air:"Cross-currents deflect the inflow, letting room air in and cabinet air out at the opening.",
+  airOk:"The inflow re-forms once the room air is calm.",
+  pr:"The air barrier is slow-moving air; doors, walking and fans can overcome it, which is why cabinets are sited away from traffic.",
+  fix:"Pause until the air settles; keep doors closed and traffic away from the cabinet.",ref:REF.bm},
+ {tag:"Suspected contamination",topic:"Aseptic technique",q:"You realise the pipette tip touched the outside of the discard tray before you drew up sterile medium.",
+  o:[["Discard the tip and the medium drawn with it, change gloves if they touched the tray, and repeat with a fresh tip","ok",0,"The suspect material was discarded."],
+     ["Use it anyway: the air in the cabinet is sterile","poor",[0,14,0],"Possibly contaminated medium was used."],
+     ["Flame the tip quickly to re-sterilise it","fail",[12,12,4],"An open flame was introduced.","flame"]],
+  r:["HEPA-filtered air protects against airborne contamination, not contamination carried by contact","Contact contamination only matters for viruses","The discard tray is sterile because it is inside the cabinet"],
+  air:"Airflow is not the issue here: the contamination travels on the tip.",
+  airOk:"Airflow is unchanged; the contact contamination was removed.",
+  pr:"A cabinet does not replace aseptic technique.",
+  fix:"When in doubt, discard and repeat.",ref:REF.both}
+];}
+const ADVICE = {
+ "Start-up sequence":"Review the order: inspect, certification, blower and sash, stabilise, check indicator, disinfect.",
+ "Sash height":"Review why the sash height is specific to each cabinet and how it controls inflow velocity.",
+ "UV lamps":"Review why UV lamps are not relied on for decontamination.",
+ "Open flames":"Review why open flames are not used in a biosafety cabinet.",
+ "Front and rear grilles":"Review the role of each grille in the airflow path.",
+ "Placement of materials":"Review clean-to-contaminated layout and working behind the front edge.",
+ "Excessive equipment":"Review how objects in the work zone disturb the downflow.",
+ "Arm movement":"Review slow, perpendicular arm movement and the waiting period.",
+ "Clean-to-contaminated workflow":"Review one-way workflow across the work surface.",
+ "Alarm response":"Review what to do when an airflow alarm sounds.",
+ "Working position":"Review where on the work surface protection is best.",
+ "Spill response":"Review spill response inside a cabinet.",
+ "External air disturbances":"Review how room air currents affect the air barrier.",
+ "Aseptic technique":"Review contact contamination versus airborne contamination.",
+ "Shut-down sequence":"Review post-use decontamination, purge and blower shutdown.",
+ "Waste handling":"Review how waste leaves the cabinet."
+};
+
+/* ============================ scoring and feedback ============================ */
+function record(e){
+  S.n[e.sev]++;
+  const imp=e.imp||[0,0,0];
+  imp.forEach((v,i)=>{S.prot[i]=Math.max(0,S.prot[i]-v);});
+  if(e.sev==="fail") S.crit.push(e.title);
+  if(e.sev!=="ok"&&e.topic) S.topics[e.topic]=(S.topics[e.topic]||0)+1;
+  const hit=imp.map((v,i)=>v?`${PROT[i]} −${v}`:"").filter(Boolean).join("; ");
+  const rows=[["What you did",e.did],["Why",e.why],["Your explanation",e.explain],["Airflow",e.air],
+    ["Protection",e.sev==="ok"?(e.keeps||"Personnel, product and environmental protection are maintained."):(hit||"No indicator reduced, but this is not accepted practice.")],
+    ["Principle",e.pr],["Corrective action",e.sev==="ok"?null:e.fix],["Reference",e.ref]];
+  const r=$("result"); r.hidden=false; r.className="result "+e.sev; r.innerHTML="";
+  const tag=document.createElement("span"); tag.className="tag"; tag.textContent=SEV[e.sev];
+  const b=document.createElement("b"); b.textContent=e.title; const dl=document.createElement("dl");
+  rows.forEach(([k,v])=>{ if(!v)return; const dt=document.createElement("dt"),dd=document.createElement("dd"); dt.textContent=k; dd.textContent=v; dl.append(dt,dd); });
+  r.append(tag,b,dl);
+  const li=document.createElement("li"); li.className=e.sev; const lb=document.createElement("b"); lb.textContent=SEV[e.sev]+": "; li.append(lb,e.title); $("log").prepend(li);
+  meters();
+}
+function meters(){
+  $("meters").innerHTML=PROT.map((p,i)=>{const v=S.prot[i],c=v>=80?"var(--ok)":v>=60?"var(--warn)":"var(--bad)";
+    return `<div class="meter"><label>${p}<b>${v}%</b></label><div class="bar"><div class="fill" style="width:${v}%;background:${c}"></div></div></div>`;}).join("");
+  $("counts").innerHTML=`<span>Correct <b>${S.n.ok}</b></span><span>Unsafe actions <b>${S.n.poor}</b></span><span>Containment risks <b>${S.n.risk}</b></span><span>Alarm conditions <b>${S.alarms}</b></span><span>Containment failures <b>${S.n.fail}</b></span>`;
+}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+/* ============================ cabinet state ============================ */
+const inside = id => S.placements[id] && S.placements[id]!=="outside";
+const blocked = z => Object.values(S.placements).includes(z);
+const nInside = () => ITEMS.filter(i=>inside(i.id)).length;
+function eff(){
+  const d=S.phase===-1, K=[S.fx&&S.fx.kind,S.cond&&S.cond.kind], h=k=>K.includes(k);
+  return { demo:d, on:d||(S.blower&&!h("blowerOff")), sash:d?"working":h("sashHigh")?"high":h("sashLow")?"low":S.sash,
+    flame:h("flame")||inside("burner"), fB:blocked("front")||h("fB"), rB:blocked("rear")||h("rB"), over:h("over")||nInside()>=8,
+    arm:h("arm"), draft:h("draft"), alarm:h("alarm"), aerosol:h("aerosol"), uv:h("uv"), spill:h("spill") };
+}
+function status(){
+  const e=eff();
+  if(e.demo) return ["ok","Normal operation: filtered air flows down, room air is drawn into the front grille."];
+  const k=(S.fx&&S.fx.kind)||(S.cond&&S.cond.kind);
+  if(k) return [k==="uv"||k==="spill"||k==="sashLow"?"warn":"bad",FXMSG[k]];
+  if(!e.on) return ["idle","The cabinet is switched off."];
+  if(e.flame) return ["bad",FXMSG.flame];
+  if(e.fB) return ["bad",FXMSG.fB];
+  if(e.rB) return ["bad",FXMSG.rB];
+  if(e.over) return ["warn",FXMSG.over];
+  if(e.sash==="closed") return ["idle","Blower running, sash closed."];
+  return ["ok","Airflow normal: the air barrier is holding."];
+}
+function plate(){
+  $("plate").innerHTML=`<b>Data plate and SOP:</b> Class II Type A2 &middot; sash working height <b>${CFG.sash} in</b> &middot; stabilise <b>${CFG.purge} min</b> before use &middot; wait <b>${CFG.arm} min</b> after inserting arms &middot; post-use purge <b>${CFG.post} min</b> &middot; blower after use: <b>${CFG.policy==="off"?"switch off":"leave running"}</b>`;
+}
+
+/* ============================ loading: drag or tap ============================ */
+function drawItems(){
+  document.querySelectorAll(".zone .chip").forEach(c=>c.remove());
+  ITEMS.forEach(it=>{
+    const z=S.placements[it.id]||"outside";
+    const b=document.createElement("button"); b.type="button"; b.className="chip"; b.textContent=it.label;
+    b.setAttribute("aria-pressed",S.picked===it.id);
+    if(z!=="outside"&&!it.ok.includes(z)) b.classList.add("wrong");
+    b.disabled=S.phase!==1; bind(b,it);
+    document.querySelector(`.zone[data-zone="${z}"]`).append(b);
+  });
+  document.body.classList.toggle("picking",!!S.picked);
+  $("pickhint").textContent = S.phase!==1 ? "" : S.picked ? `Now choose where “${ITEMS.find(i=>i.id===S.picked).label}” goes` : "Drag an item into place, or tap it and then tap a location";
+}
+function bind(b,it){
+  let sx=null,sy,ghost=null;
+  b.onpointerdown=e=>{ if(S.phase!==1)return; sx=e.clientX; sy=e.clientY; try{b.setPointerCapture(e.pointerId);}catch(_){} };
+  b.onpointermove=e=>{ if(sx===null)return;
+    if(!ghost&&Math.hypot(e.clientX-sx,e.clientY-sy)>6){ ghost=b.cloneNode(true); ghost.className="chip ghost"; document.body.append(ghost); S.picked=it.id; document.body.classList.add("picking"); }
+    if(ghost){ghost.style.left=e.clientX+"px"; ghost.style.top=e.clientY+"px";} };
+  b.onpointerup=e=>{ if(sx===null)return; sx=null;
+    if(ghost){ ghost.remove(); ghost=null; const el=document.elementFromPoint(e.clientX,e.clientY), z=el&&el.closest(".zone");
+      if(z)place(z.dataset.zone); else {S.picked=null; drawItems();} }
+    else { S.picked=S.picked===it.id?null:it.id; drawItems(); } };
+  b.onpointercancel=()=>{ sx=null; if(ghost){ghost.remove();ghost=null;} S.picked=null; drawItems(); };
+  b.onclick=e=>e.stopPropagation();
+  b.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();e.stopPropagation(); S.picked=S.picked===it.id?null:it.id; drawItems();} };
+}
+function place(zone){
+  if(!S.picked||S.phase!==1) return;
+  const it=ITEMS.find(i=>i.id===S.picked), prev=S.placements[it.id]||"outside";
+  S.placements[it.id]=zone; S.picked=null;
+  const host=document.querySelector(`.zone[data-zone="${zone}"]`); host.classList.remove("good","poor"); void host.offsetWidth;
+  if(prev!==zone){
+    const good=it.ok.includes(zone), did=`Placed “${it.label}” ${zone==="outside"?"on the bench outside":"in the cabinet"}.`;
+    host.classList.add(good?"good":"poor");
+    if(it.id==="burner"&&zone!=="outside") record({sev:"risk",title:"Burner placed in the cabinet",did,imp:[4,4,0],topic:"Open flames",
+      why:"Open flames are not used in a biosafety cabinet. Nothing is lit yet, so this is a risk you can still remove.",air:"If lit, rising heat would break the downflow.",
+      pr:"Heat disrupts airflow and can damage the supply HEPA filter.",fix:"Move the burner back to the bench before starting work.",ref:REF.both});
+    else if(zone==="front") record({sev:"risk",title:"Front grille obstructed",did,imp:[6,4,0],topic:"Front and rear grilles",
+      why:"The front grille is the intake that forms the air barrier.",air:"Room air cannot drop into the grille and moves across the work surface instead; cabinet air can spill out.",
+      pr:"Personnel protection and product protection both depend on an open front grille.",fix:"Move the item off the grille before starting work.",ref:REF.both});
+    else if(zone==="rear") record({sev:"risk",title:"Rear grille obstructed",did,imp:[2,6,2],topic:"Front and rear grilles",
+      why:"Downflow leaves the work zone through the rear grille as well as the front.",air:"Air at the back stagnates and rolls forward over the work.",
+      pr:"Both grilles are part of the airflow path.",fix:"Move the item forward, clear of the grille.",ref:REF.both});
+    else if(zone==="edge") record({sev:"poor",title:"Placed at the front edge",did,imp:[4,4,0],topic:"Placement of materials",
+      why:"The strip just behind the front grille is where room air and cabinet air meet.",air:"Items here sit in mixed, partly unfiltered air.",
+      pr:"Work at least about 10 cm (4 in) behind the front grille.",fix:"Move the item further into the cabinet.",ref:REF.bm});
+    else if(good) record({sev:"ok",title:"Good placement: "+it.label,did,why:it.why,pr:"Arrange materials from clean to contaminated, and keep only what is needed inside.",ref:REF.both});
+    else if(zone==="outside") record({sev:"poor",title:"Left outside: "+it.label,did,imp:[2,0,0],topic:"Placement of materials",
+      why:"You will need this item. Fetching it later means extra movements through the air barrier.",air:"Each pass of an arm through the opening disturbs the inflow.",
+      pr:"Load everything needed before starting.",fix:"Place it inside before you begin.",ref:REF.both});
+    else record({sev:"poor",title:"Poor placement: "+it.label,did,imp:[0,6,0],topic:it.need?"Placement of materials":"Excessive equipment",
+      why:it.bad||"This breaks the clean-to-contaminated order across the work surface.",air:it.need?"Airflow is unchanged, but contaminated items will pass over clean ones.":"Extra objects disturb the uniform downflow.",
+      pr:"Product protection depends on one-way workflow and uniform downflow.",fix:it.need?"Clean supplies on one side, work in the centre, waste on the other side.":"Return it to the bench.",ref:REF.both});
+    if(nInside()===8&&zone!=="outside"&&(prev==="outside")) record({sev:"risk",title:"Work zone overloaded",did:"Eight or more items are now inside the cabinet.",imp:[2,8,0],topic:"Excessive equipment",
+      why:"Too many objects break up the downflow.",air:"The downflow breaks into eddies and moves sideways across the surface.",pr:"Product protection depends on uniform downflow.",fix:"Take out everything the procedure does not need.",ref:REF.both});
+  }
+  drawItems(); paintStatus();
+}
+document.querySelectorAll(".zone").forEach(z=>{
+  z.onclick=()=>place(z.dataset.zone);
+  z.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();place(z.dataset.zone);}};
+});
+
+/* ============================ screens ============================ */
+function paintStatus(){ const [k,t]=status(); $("status").className="status "+k; $("status").lastElementChild.textContent=t; }
+function act(text,fn,cls){const b=document.createElement("button");b.type="button";b.className=cls||"act";b.textContent=text;b.onclick=fn;return b;}
+const go=(t,fn)=>act(t,fn,"go");
+function next(p){ S.phase=p; S.fx=S.cond=null; S.done=[]; S.used=[]; S.order=null; S.sub=false; $("result").hidden=true; render(); }
+let LIST=null;
+
+function render(){
+  const acts=$("acts"), body=$("body"), after=$("after");
+  acts.innerHTML=""; body.innerHTML=""; after.innerHTML="";
+  [...$("stepper").children].forEach((li,i)=>{li.className=i<S.phase?"done":i===S.phase?"now":"";});
+  $("top").hidden=!(S.phase>=1&&S.phase<=3); $("scorecard").hidden=S.phase<0;
+  drawItems(); paintStatus(); plate(); meters();
+
+  if(S.phase===-1){
+    $("title").textContent="How this works";
+    body.innerHTML=`<ol class="how">
+      <li>You will run one session at a Class II biosafety cabinet: start-up, loading, work, and shut-down.</li>
+      <li>Choose what to do at each step. Some choices are unsafe on purpose. During work you will also be asked <b>why</b>.</li>
+      <li>Watch the picture: the air shows what your choice did.</li>
+      <li>Three indicators track <b>personnel</b>, <b>product</b> and <b>environmental</b> protection. A containment failure cannot be made up with points.</li></ol>
+      <div class="cfg"><p>This cabinet's manual and laboratory SOP. These differ between cabinets and institutions; use the values your instructor gives, or leave them as they are.</p>
+      <label>Sash working height<select id="c_sash"><option value="8">8 inches</option><option value="10">10 inches</option><option value="12">12 inches</option></select></label>
+      <label>Stabilise before use<select id="c_purge"><option value="4">4 minutes</option><option value="5">5 minutes</option></select></label>
+      <label>Wait after inserting arms<select id="c_arm"><option value="2">about 2 minutes</option><option value="1">about 1 minute</option></select></label>
+      <label>Post-use purge<select id="c_post"><option value="5">5 minutes</option><option value="4">4 minutes</option><option value="15">15 minutes</option></select></label>
+      <label>Blower after use<select id="c_policy"><option value="off">Switch off</option><option value="on">Leave running</option></select></label>
+      <label>Your name (for the report)<input id="c_name" type="text" maxlength="60" autocomplete="off"></label></div>`;
+    ["sash","purge","arm","post","policy","name"].forEach(k=>{const el=$("c_"+k); el.value=CFG[k]; el.onchange=el.oninput=()=>{CFG[k]=el.value; plate();};});
+    after.append(go("Begin the session",()=>next(0)));
+    return;
+  }
+  if(S.phase===0||S.phase===3){
+    if(!S.order){LIST=S.phase===0?startup():shutdown(); S.order=shuffle(LIST.map((_,i)=>i));}
+    const steps=LIST.filter(x=>!x.trap);
+    $("title").textContent=S.phase===0?"Step 1: Start-up":"Step 4: Shut-down";
+    if(S.sub){
+      body.innerHTML=`<p class="prompt">To what height do you set the sash?<small>The working height is set by the manufacturer for each cabinet. Read the data plate under the picture.</small></p>`;
+      ["8","10","12","full"].forEach(h=>acts.append(act(h==="full"?"Fully open":h+" inches",()=>setSash(h))));
+      return;
+    }
+    body.innerHTML=S.phase===0
+      ?`<p class="prompt">The cabinet is off and the sash is closed. What do you do next?<small>Choose one action at a time, in a safe order. Not every button is a good idea.</small></p>`
+      :`<p class="prompt">The work is finished. What do you do next?<small>Choose one action at a time, in a safe order. Check the SOP line under the picture.</small></p>`;
+    S.order.forEach(i=>{ const x=LIST[i], b=act(x.t,()=>choose(x,i));
+      if(x.trap&&S.used.includes(i)){b.classList.add("wrong");b.disabled=true;}
+      if(!x.trap&&S.done.includes(x.id)){b.classList.add("done");b.disabled=true;}
+      acts.append(b); });
+    if(S.done.length===steps.length) after.append(S.phase===0?go("Next: load the cabinet",()=>next(1)):go("See my performance report",()=>next(4)));
+    return;
+  }
+  if(S.phase===1){
+    $("title").textContent="Step 2: Load the cabinet";
+    body.innerHTML=`<p class="prompt">Put what this procedure needs inside the cabinet.<small>Under the picture, drag each item to where it belongs. Some items should stay on the bench outside.</small></p>`;
+    after.append(go("Done loading: start working",startWork));
+    return;
+  }
+  if(S.phase===2){ renderWork(acts,body,after); return; }
+  report(body,after);
+}
+
+function choose(x,i){
+  if(S.busy) return; S.fx=null; S.seq.t++;
+  if(x.trap){ S.used.push(i); if(x.fx)S.fx={kind:x.fx}; record({sev:x.sev,title:x.t,did:"Chose: "+x.t+".",why:x.why,air:x.air,imp:x.imp,pr:x.pr,fix:x.fix,ref:x.ref,topic:x.topic}); render(); return; }
+  const NEED={inspect:"the cabinet had not been inspected",cert:"the certification had not been checked",blower:"the blower was off",sash:"the sash was not at its working height",
+    purge:"the airflow had not stabilised",close:"containers were still open",remove:"items were still inside",waste:"the waste was still inside",wipe2:"the surfaces had not been disinfected",
+    contact:"the contact time had not passed",purge2:"the post-use purge had not been run"};
+  const miss=x.need.filter(n=>!S.done.includes(n));
+  if(miss.length){ record({sev:"poor",title:"Out of sequence",did:"Chose: "+x.t+".",imp:[0,4,0],topic:S.phase===0?"Start-up sequence":"Shut-down sequence",
+    why:"You did this while "+miss.map(m=>NEED[m]).join(" and ")+".",pr:"Each step prepares the conditions for the next one.",fix:"Do the earlier step first.",ref:REF.both}); render(); return; }
+  if(x.sub){ S.seq.t--; S.sub=true; $("result").hidden=true; render(); return; }
+  const finish=()=>{ if(x.run)x.run(); S.done.push(x.id); S.seq.r++; record({sev:"ok",title:x.t,did:"Chose: "+x.t+".",why:x.why,air:x.air,pr:x.pr,ref:x.ref}); render(); };
+  if(!x.timed) return finish();
+  S.busy=true; let left=x.timed*60; const stepSize=Math.max(10,x.timed*4), r=$("result"); r.hidden=false; r.className="timer";
+  const t=setInterval(()=>{ r.textContent=`${x.tl||"Running"}… ${left/60|0}:${String(left%60).padStart(2,"0")} (fast-forwarded)`; left-=stepSize;
+    if(left<0){clearInterval(t);S.busy=false;finish();} },180);
+}
+function setSash(h){
+  S.seq.t++;
+  if(h===CFG.sash){ S.sash="working"; S.fx=null; S.sub=false; S.done.push("sash"); S.seq.r++;
+    record({sev:"ok",title:`Sash set to ${h} inches`,did:`Set the sash to ${h} inches, as the data plate states.`,why:"This is the opening at which this cabinet was designed and certified.",
+      air:"Inflow velocity is correct across the whole opening.",pr:"The working height is manufacturer-specific and verified at certification; it is not the same on every cabinet.",ref:REF.man+"; "+REF.bm}); }
+  else { const high=h==="full"||+h>+CFG.sash; S.fx={kind:high?"sashHigh":"sashLow"};
+    record({sev:high?"risk":"poor",title:"Sash at the wrong height",did:`Set the sash to ${h==="full"?"fully open":h+" inches"}; the data plate states ${CFG.sash} inches.`,imp:high?[8,3,0]:[3,3,0],topic:"Sash height",
+      why:high?"A larger opening lowers the inflow velocity.":"A smaller opening than the certified one changes the airflow balance and cramps your arm movement.",
+      air:high?"Slower inflow lets cabinet air escape near the top of the opening.":"The inflow speeds up and becomes turbulent at the opening.",
+      pr:"The working height is manufacturer-specific; never assume a number from another cabinet.",fix:`Set the sash to ${CFG.sash} inches.`,ref:REF.man+"; "+REF.bm}); }
+  render();
+}
+function startWork(){
+  const missing=ITEMS.filter(i=>i.need&&!inside(i.id)).map(i=>i.label);
+  const fr=blocked("front"), rr=blocked("rear"), bu=inside("burner");
+  ITEMS.forEach(i=>{ const z=S.placements[i.id]; if(z&&(z==="front"||z==="rear"||z==="edge"||(!i.need&&z!=="outside")))delete S.placements[i.id]; if(i.need&&!inside(i.id))S.placements[i.id]=i.ok[0]; });
+  S.w={i:0,open:false}; next(2);
+  if(fr||rr||bu) record({sev:"fail",title:"Work started with "+[fr&&"the front grille blocked",rr&&"the rear grille blocked",bu&&"a burner inside"].filter(Boolean).join(" and "),
+    did:"Pressed start with a hazard still in the cabinet.",imp:[fr||bu?15:4,rr||bu?12:8,bu?4:0],topic:bu?"Open flames":"Front and rear grilles",
+    why:"A risk you could have corrected during loading became a failure once work with cultures began.",air:"The airflow pattern was broken while infectious material was open.",
+    pr:"Check the cabinet before starting, not after.",fix:"Your instructor has stopped the session and corrected the layout. You must be reassessed.",ref:REF.both});
+  else if(missing.length) record({sev:"poor",title:"Started without everything needed",did:"Missing: "+missing.join(", ")+".",imp:[3,0,0],topic:"Placement of materials",
+    why:"Fetching items later means extra movement through the air barrier.",pr:"Load everything before starting.",fix:"Your instructor has added the missing items.",ref:REF.both});
+}
+
+function renderWork(acts,body,after){
+  const W=S.w, list=W.list||(W.list=work()), sc=list[W.i];
+  if(!W.open){ W.open=true; W.stage="act"; W.tried=[]; W.whyDone=false; W.oo=shuffle([0,1,2]); W.ro=shuffle([0,1,2]);
+    S.cond=sc.cond?{kind:sc.cond}:null; S.fx=null; if(sc.int)S.alarms++; $("result").hidden=true; paintStatus(); }
+  $("title").textContent=`Step 3: Work (${W.i+1} of ${list.length})`;
+  const k=document.createElement("span"); k.className="kicker"+(sc.int?" alarm":""); k.textContent=sc.int?sc.tag+": work is interrupted":sc.tag;
+  const p=document.createElement("p"); p.className="prompt"; p.textContent=sc.q; body.append(k,p);
+  if(W.stage==="why"){
+    const s=document.createElement("small"); s.textContent="Before you see the result: which principle applies here?"; p.append(s);
+    W.ro.forEach(j=>acts.append(act(sc.r[j],()=>{ S.why.t++; W.whyOk=j===0; if(W.whyOk)S.why.r++; W.whyDone=true; commit(sc); })));
+    return;
+  }
+  W.oo.forEach(i=>{ const o=sc.o[i], b=act(o[0],()=>{ W.c=i; S.fx=i===0?null:(o[4]?{kind:o[4]}:null); if(i===0)S.cond=null;
+      if(W.whyDone) commit(sc); else {W.stage="why"; $("result").hidden=true; render();} });
+    if(W.stage==="fb"){ b.disabled=true; if(i===W.c)b.classList.add(i===0?"done":"wrong"); }
+    else if(W.tried.includes(i)){ b.disabled=true; b.classList.add("wrong"); }
+    acts.append(b); });
+  if(W.stage==="fb"){
+    const wrong=W.c!==0;
+    if(wrong&&sc.int) after.append(go("Respond again: the cabinet is still unsafe",()=>{ W.stage="act"; S.fx=null; S.cond={kind:sc.cond}; $("result").hidden=true; render(); }));
+    else after.append(go(W.i+1<list.length?"Continue":"Next: shut down",()=>{ W.open=false; S.fx=S.cond=null; if(++W.i>=list.length) next(3); else render(); }));
+  }
+}
+function commit(sc){
+  const W=S.w, o=sc.o[W.c], ok=W.c===0, first=W.tried.length===0;
+  const explain=first?(W.whyOk?"Correct: "+sc.r[0]+".":"Not the principle here. The principle is: "+sc.r[0]+"."):null;
+  if(!ok) W.tried.push(W.c);
+  W.stage="fb";
+  record({sev:ok?"ok":o[1],title:ok?(first?"Correct response":"Corrected"):o[3],did:"Chose: "+o[0]+".",why:ok?o[3]:o[3]+" "+(sc.int?"This had to be corrected before work could continue.":""),
+    explain,air:ok?sc.airOk:sc.air,imp:ok?null:o[2],pr:sc.pr,fix:sc.fix,ref:sc.ref,topic:sc.topic});
+  render();
+}
+
+/* ============================ report ============================ */
+function report(body,after){
+  const pc=(a)=>a.t?Math.round(100*a.r/a.t):0, why=pc(S.why), seq=pc(S.seq), crit=S.crit.length, low=Math.min(...S.prot);
+  const v=crit?["Remediation and reassessment required","bad"]:(low>=80&&why>=75&&seq>=75)?["Competent","ok"]:["Not yet competent: more practice needed","warn"];
+  $("title").textContent="Performance report"; $("result").hidden=true;
+  const topics=Object.keys(S.topics);
+  const d=document.createElement("div");
+  d.innerHTML=`<p style="margin:0 0 10px;font-size:13.5px;color:var(--muted)"><b id="rn" style="color:var(--fg)"></b> &middot; ${new Date().toLocaleDateString()} &middot; Class II Type A2, sash ${CFG.sash} in</p>
+   <p class="verdict" style="background:var(--${v[1]}-bg);color:var(--${v[1]})">${v[0]}${crit?"<br><span style=\"font-weight:500;font-size:13.5px\">A critical safety violation cannot be offset by correct answers elsewhere.</span>":""}</p>
+   <table class="rep">
+    <tr class="h"><th>Decisions</th><td></td></tr>
+    <tr><th>Correct decisions</th><td>${S.n.ok}</td></tr>
+    <tr><th>Poor practices (unsafe actions)</th><td>${S.n.poor}</td></tr>
+    <tr><th>Potential containment risks</th><td>${S.n.risk}</td></tr>
+    <tr><th>Critical safety violations (containment failures)</th><td>${crit}</td></tr>
+    <tr><th>Alarm conditions and incidents faced</th><td>${S.alarms}</td></tr>
+    <tr class="h"><th>Protection maintained</th><td></td></tr>
+    ${PROT.map((p,i)=>`<tr><th>${p}</th><td>${S.prot[i]}%</td></tr>`).join("")}
+    <tr class="h"><th>Understanding and proficiency</th><td></td></tr>
+    <tr><th>Understanding of airflow (principle questions)</th><td>${S.why.r}/${S.why.t} (${why}%)</td></tr>
+    <tr><th>Operational proficiency (start-up and shut-down steps right first time)</th><td>${seq}%</td></tr>
+   </table>
+   ${crit?`<b style="font-size:13.5px">Critical violations</b><ul class="rules" id="rc"></ul>`:""}
+   <b style="font-size:13.5px;display:block;margin-top:10px">Areas requiring remediation</b>
+   <ul class="rules" id="rt"></ul>
+   <p class="cite">Procedures follow the WHO Laboratory Biosafety Manual, 4th ed. (2020) and CDC/NIH BMBL, 6th ed. (2020), Appendix A. Sash height, timings and blower shutdown follow the cabinet manual and local SOP entered for this session. Take a screenshot of this report to submit it.</p>`;
+  body.append(d);
+  $("rn").textContent=CFG.name.trim()||"Student name not entered";
+  if(crit) S.crit.forEach(c=>{const li=document.createElement("li"); li.textContent=c; $("rc").append(li);});
+  if(!topics.length){const li=document.createElement("li"); li.textContent="None identified in this session."; $("rt").append(li);}
+  topics.forEach(t=>{const li=document.createElement("li"); li.textContent=`${t} (${S.topics[t]}): ${ADVICE[t]||"Review this topic."}`; $("rt").append(li);});
+  after.append(go(crit?"Start reassessment":"Run another session",()=>{S=fresh();$("log").innerHTML="";render();}));
+}
+
+/* ============================ airflow picture (drawn at 640 x 400) ============================ */
+const cv=$("cv"), g=cv.getContext("2d"); let sc=1, P=[], T=0;
+const sashY = s => s==="closed"?288:s==="working"?215:s==="low"?250:150;
+function size(){ const r=cv.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,2); sc=r.width/640; cv.width=r.width*d; cv.height=r.height*d; g.setTransform(d*sc,0,0,d*sc,0,0); }
+function clr(p){p.esc=p.hot=p.amb=false;}
+function spIn(p,sb){clr(p);p.t="in";p.x=140+Math.random()*100;p.y=sb+6+Math.random()*Math.max(4,278-sb);p.vx=1.6;p.vy=0;}
+function spDown(p,x,y){clr(p);p.t="down";p.x=x==null?258+Math.random()*236:x;p.y=y==null?126:y;p.vx=0;p.vy=1.5;}
+function toRet(p){clr(p);p.t="ret";p.s=0;p.y=300+Math.random()*8;p.rx=510+Math.random()*24;p.ry=52+Math.random()*16;p.exh=Math.random()<.34;p.tx=p.exh?310+Math.random()*130:260+Math.random()*232;}
+function move(p,e,sb){
+  const k=e.alarm?.35:1, pulse=e.arm&&(T%64)<22;
+  if(p.esc){const dx=165-p.x,dy=150-p.y,d=Math.hypot(dx,dy)||1; p.vx=dx/d*1.5+(Math.random()-.5)*.9; p.vy=dy/d*1.5+(Math.random()-.5)*.9; p.x+=p.vx; p.y+=p.vy;
+    if(d<16||p.x<105)spDown(p); return;}
+  if(!e.on){ if(p.t==="ret"){p.vx=p.vy=0;return;} if(p.t==="in"){spDown(p,null,126+Math.random()*160);return;}
+    p.vx=(Math.random()-.5)*1.4-.22; p.vy=(Math.random()-.5)*1.4; p.x=Math.min(497,p.x+p.vx); p.y=Math.min(287,Math.max(126,p.y+p.vy));
+    if(p.x<254){if(p.y>sb)p.esc=true;else p.x=254;} return;}
+  if(p.t==="ret"){ const v=3.8*k;
+    if(p.s===0){p.vx=v;p.vy=0;if(p.x>=p.rx)p.s=1;}
+    else if(p.s===1){p.vx=0;p.vy=-v;if(p.y<=p.ry)p.s=2;}
+    else if(p.s===2){p.vx=-v;p.vy=0;if(p.x<=p.tx)p.s=3;}
+    else if(p.exh){p.vx=0;p.vy=-v*.8;if(p.y<4){sb<286?spIn(p,sb):spDown(p);return;}}
+    else{p.vx=0;p.vy=v*.8;if(p.y>=124){spDown(p,p.x);return;}}
+    p.x+=p.vx;p.y+=p.vy;return;}
+  if(p.t==="in"){
+    if(p.x<252){ p.vx=e.sash==="high"?.8:e.sash==="low"?2.4:1.7; p.vy=0; if(e.sash==="low")p.amb=true;
+      if(e.draft){p.amb=true;p.vx=.3+(Math.random()-.5)*2.6;p.vy=(Math.random()-.5)*3;if(p.x<120||p.y<sb||p.y>286){spIn(p,sb);return;}}
+      if(pulse&&p.x>215){p.vx=-1.6;p.amb=true;} }
+    else if(e.fB){p.amb=true;if(p.x<462){p.vx=1.5;p.vy=p.y<272?.5:0;}else{p.vx=.3;p.vy=1.6;}}
+    else{p.vx=.5;p.vy=1.8;}
+    p.x+=p.vx*k;p.y+=p.vy*k; if(p.y>=289)toRet(p); return;}
+  if(p.hot){p.vx=-1.9;p.vy=-.35;p.x+=p.vx;p.y+=p.vy; if(p.x<254){if(p.y>sb)p.esc=true;else spDown(p);} else if(p.y<128)spDown(p); return;}
+  p.vy=1.5;p.vx=0;
+  const f=p.x<375;
+  if(p.y>248){ p.vy=.9;p.vx=f?-1.5:1.5;
+    if(f&&e.fB){if(Math.random()<.22)p.hot=true;else{p.vx=0;p.vy=.12;p.amb=true;}}
+    if(!f&&e.rB){p.vx=-1.7;p.vy=-.15;p.amb=true;}
+    if(p.amb&&p.x<300&&Math.random()<.05)p.hot=true; }
+  if(e.over&&p.y>205){p.amb=true;p.vx=(Math.random()-.5)*4.2;p.vy=(Math.random()-.35)*1.7;if(p.x<264&&p.y>sb&&Math.random()<.12)p.hot=true;}
+  if(e.flame&&Math.abs(p.x-375)<42&&p.y>185)p.hot=true;
+  if(e.aerosol&&p.x<330&&p.y>232&&Math.random()<.18)p.hot=true;
+  if(e.sash==="high"&&p.x<330&&p.y>sb+10&&Math.random()<.035)p.hot=true;
+  if(e.alarm&&p.x<325&&p.y>sb+8&&Math.random()<.03)p.hot=true;
+  if(e.draft&&p.x<305&&p.y>sb+5&&Math.random()<.035)p.hot=true;
+  if(pulse&&p.x<325&&p.y>sb&&Math.random()<.3)p.hot=true;
+  p.x=Math.min(498,Math.max(254,p.x+p.vx*k)); p.y+=p.vy*k;
+  if(p.y>=289){ if(p.x<292||p.x>460)toRet(p); else{p.y=288;} }
+}
+function label(t,x,y,al){ const f=Math.max(11,10.5/sc); g.font=`600 ${f}px "IBM Plex Sans",sans-serif`; g.textAlign=al||"center"; g.fillStyle="#d5e3ea"; g.fillText(t,x,y); }
+function hepa(x,y,w,h){ g.fillStyle="#a9bcc7"; g.fillRect(x,y,w,h); g.strokeStyle="#5d717d"; g.lineWidth=1; g.beginPath(); for(let i=x+4;i<x+w;i+=6){g.moveTo(i,y);g.lineTo(i,y+h);} g.stroke(); }
+function paint(e,sb){
+  g.clearRect(0,0,640,400);
+  g.fillStyle="#2a363e"; g.fillRect(0,372,640,28);
+  g.fillStyle="#44535d"; g.fillRect(250,318,12,54); g.fillRect(526,318,12,54);
+  g.fillStyle="#3b4953"; g.fillRect(240,26,308,292);
+  g.fillStyle="#26323a"; g.fillRect(252,44,288,66); g.fillRect(504,44,36,268); g.fillRect(252,296,288,18);
+  g.fillStyle=e.uv?"#2c2147":"#141d23"; g.fillRect(252,124,248,166);
+  hepa(252,110,248,13); hepa(300,29,150,13);
+  g.save(); g.translate(376,76); g.strokeStyle="#9fb3bf"; g.lineWidth=2; g.beginPath(); g.arc(0,0,13,0,7); g.stroke();
+  g.rotate(e.on?T*(e.alarm?.05:.18):0); g.beginPath(); for(let i=0;i<3;i++){g.rotate(2.094);g.moveTo(0,0);g.lineTo(11,0);} g.stroke(); g.restore();
+  g.fillStyle=e.alarm&&(T%30)<15?"#ff6b5e":e.alarm?"#7a2f2a":"#56666f"; g.beginPath(); g.arc(532,36,5,0,7); g.fill();
+  g.fillStyle="#9fb3bf"; g.fillRect(252,290,248,5);
+  g.fillStyle="#141d23"; for(let i=0;i<5;i++){g.fillRect(256+i*6,290,3,5);g.fillRect(470+i*6,290,3,5);}
+  if(e.fB){g.fillStyle="#ff6b5e";g.fillRect(254,278,34,12);} if(e.rB){g.fillStyle="#ff6b5e";g.fillRect(464,262,34,28);}
+  if(e.over){g.fillStyle="#5f7482";g.fillRect(300,250,34,40);g.fillRect(345,232,40,58);g.fillRect(398,256,30,34);g.fillRect(436,240,24,50);}
+  if(e.spill){g.fillStyle="#d9534f";g.beginPath();g.ellipse(372,289,30,4,0,0,7);g.fill();}
+  if(e.flame){g.fillStyle="#8fa3af";g.fillRect(369,276,12,14);const h=20+Math.sin(T*.5)*4; g.fillStyle="#ffb347";g.beginPath();g.moveTo(367,276);g.quadraticCurveTo(375,276-h*1.6,383,276);g.fill();}
+  g.fillStyle="#6c8494"; g.beginPath(); g.arc(165,150,16,0,7); g.fill();
+  g.beginPath(); g.roundRect(148,170,36,112,10); g.fill(); g.fillRect(152,278,12,94); g.fillRect(170,278,12,94);
+  if(sb<286&&(S.phase===-1||S.phase>=1&&S.phase<=3)){ const reach=e.arm?Math.sin(T*.1)*34:0;
+    g.strokeStyle="#6c8494";g.lineWidth=10;g.lineCap="round";g.beginPath();g.moveTo(176,196);g.lineTo(222-reach*.4,250);g.lineTo(284-reach,Math.min(268,Math.max(sb+14,268)));g.stroke();g.lineCap="butt";}
+  for(const p of P){ if(!e.on&&p.t==="ret")continue; const red=p.esc||p.hot;
+    g.strokeStyle=red?"#ff6b5e":p.amb?"#f0b860":p.t==="in"?"#aab8c0":p.t==="ret"&&!(p.s===3)?"#a99cf0":"#5cc8e6";
+    g.globalAlpha=red?.95:p.t==="ret"?.6:.72; g.lineWidth=red?2.2:1.5;
+    g.beginPath(); g.moveTo(p.x,p.y); g.lineTo(p.x-p.vx*4,p.y-p.vy*4); g.stroke(); }
+  g.globalAlpha=1;
+  g.fillStyle="rgba(170,215,235,.55)"; g.fillRect(245,124,6,sb-124);
+  g.fillStyle="#ffd666"; g.fillRect(232,214,12,2);
+  label("Exhaust HEPA: about 30% leaves, filtered",375,19); label("Supply HEPA: about 70% recirculated",376,104);
+  label("Sash",238,146,"right"); label("You",165,394); label("↑ Front grille",272,342); label("↑ Rear grille",478,342);
+  if(e.draft) label("Draught →",62,236);
+}
+function frame(){ const e=eff(), sb=sashY(e.sash); for(const p of P)move(p,e,sb); paint(e,sb); T++; }
+function loop(){ frame(); requestAnimationFrame(loop); }
+
+S=fresh();
+for(let i=0;i<400;i++){ const p={}; if(i<220)spDown(p,null,126+Math.random()*160); else if(i<300)spIn(p,215); else { p.x=262+Math.random()*230; toRet(p); p.s=i%4;
+    if(p.s===1){p.x=p.rx;p.y=70+Math.random()*230;} else if(p.s===2){p.y=p.ry;p.x=p.tx+Math.random()*(p.rx-p.tx);} else if(p.s===3){p.x=p.tx;p.y=p.exh?40+Math.random()*16:70+Math.random()*50;} }
+  P.push(p); }
+size(); addEventListener("resize",size);
+render();
+if(matchMedia("(prefers-reduced-motion: reduce)").matches) setInterval(frame,400); else requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>
